@@ -6,15 +6,15 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0B0F14">
-<title>Battery Test</title>
+<title>Battery Monitor</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
   :root {
-    --bg: #0B0F14; --panel: #131920; --border: #232B34;
+    --bg: #0B0F14; --panel: #131920; --panel-raised: #171E26; --border: #232B34;
     --text: #E8EDF2; --text-dim: #8B98A5;
-    --amber: #F5A623; --teal: #2DD4BF; --red: #EF4444; --green: #4ADE80;
+    --amber: #F5A623; --teal: #2DD4BF; --red: #EF4444; --green: #4ADE80; --purple: #A78BFA;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; padding-bottom: 40px; }
@@ -36,34 +36,76 @@
   .status-pill.online .dot { animation: pulse 2s infinite; }
   @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
+  .gauge-section { padding: 24px 20px 0; display: flex; flex-direction: column; align-items: center; }
+  .battery-panel {
+    background: var(--panel-raised); border: 1px solid var(--border); border-radius: 14px;
+    padding: 20px; display: flex; flex-direction: column; align-items: center; width: 100%;
+  }
+  .gauge-wrap { position: relative; width: 220px; }
+  .needle { transform-origin: 110px 110px; transform: rotate(-90deg); transition: transform 1s cubic-bezier(0.34, 1.2, 0.64, 1); }
+  .gauge-center-text { position: absolute; top: 70px; left: 0; right: 0; text-align: center; }
+  .soc-value { font-size: 36px; font-weight: 700; line-height: 1; letter-spacing: -0.02em; }
+  .soc-label { font-size: 10.5px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 4px; }
+  .soc-ah { font-size: 12px; color: var(--text-dim); margin-top: 4px; text-align: center; }
+
   .flow-indicator {
-    display: inline-flex; align-items: center; gap: 5px; margin: 16px 20px 0;
+    display: inline-flex; align-items: center; gap: 5px;
     font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
-    padding: 5px 12px; border-radius: 20px; width: fit-content;
+    margin-top: 12px; padding: 5px 12px; border-radius: 20px;
   }
   .flow-indicator.charging { color: var(--amber); background: rgba(245,166,35,0.1); }
   .flow-indicator.discharging { color: var(--teal); background: rgba(45,212,191,0.1); }
   .flow-indicator.idle { color: var(--text-dim); background: rgba(139,152,165,0.1); }
 
-  .main-section { padding: 20px; }
-  .main-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 24px; }
-  .watts-big { text-align: center; padding-bottom: 20px; }
-  .watts-value { font-size: 48px; font-weight: 700; }
-  .watts-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 4px; }
-  .stat-row { display: flex; justify-content: space-between; align-items: baseline; padding: 10px 0; }
-  .stat-row + .stat-row { border-top: 1px solid var(--border); }
-  .stat-label { font-size: 13px; color: var(--text-dim); }
-  .stat-value { font-size: 18px; font-weight: 700; }
+  .runtime-estimate { margin-top: 10px; text-align: center; }
+  .runtime-value { font-size: 18px; font-weight: 700; }
+  .runtime-label { font-size: 10.5px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
 
-  .section-title {
-    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
-    color: var(--text-dim); margin: 24px 20px 10px;
+  .stats-panel { padding: 20px 20px 0; }
+  .stats-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .stat-row { display: flex; justify-content: space-between; align-items: baseline; padding: 7px 0; }
+  .stat-row + .stat-row { border-top: 1px solid var(--border); }
+  .stat-label { font-size: 12px; color: var(--text-dim); }
+  .stat-value { font-size: 15px; font-weight: 700; }
+
+  .overnight-section { padding: 24px 20px 0; }
+  .section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); margin-bottom: 10px; }
+  .overnight-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+  .overnight-badge {
+    display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+    padding: 3px 9px; border-radius: 12px; background: rgba(245,166,35,0.12); color: var(--amber); margin-bottom: 10px;
   }
-  .chart-card {
-    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
-    padding: 16px 12px; margin: 0 20px 16px; height: 220px;
+  .overnight-value { font-size: 30px; font-weight: 700; }
+  .overnight-detail { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+  .overnight-history { margin-top: 14px; }
+  .overnight-row { display: flex; justify-content: space-between; font-size: 12px; padding: 8px 0; border-top: 1px solid var(--border); color: var(--text-dim); }
+  .overnight-row .overnight-wh { color: var(--text); font-weight: 600; }
+  .no-data { font-size: 12px; color: var(--text-dim); padding: 8px 0; }
+
+  .health-section { padding: 24px 20px 0; }
+  .health-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .panel-header { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; color: var(--purple); }
+  .previous-sessions { margin-top: 10px; }
+  .session-row { display: flex; justify-content: space-between; font-size: 12px; padding: 7px 0; border-top: 1px solid var(--border); color: var(--text-dim); }
+  .session-row .session-duration { color: var(--text); font-weight: 600; }
+  .no-sessions { font-size: 12px; color: var(--text-dim); padding: 8px 0; }
+
+  .insights-section { padding: 24px 20px 0; }
+  .insights-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .insight-tile { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+  .insight-value { font-size: 20px; font-weight: 700; }
+  .insight-label { font-size: 10.5px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px; }
+
+  .capacity-panel {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin: 24px 20px 0;
   }
-  .range-tabs { display: flex; gap: 8px; padding: 0 20px; margin-top: 8px; }
+  .capacity-value { font-size: 26px; font-weight: 700; }
+  .capacity-detail { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+  .capacity-vs { font-size: 11px; color: var(--text-dim); margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+
+  .chart-section { padding: 24px 20px 0; }
+  .chart-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px 12px; margin-bottom: 16px; height: 200px; }
+  .range-tabs { display: flex; gap: 8px; padding: 0 20px 4px; margin-top: 8px; }
   .range-tab { font-size: 11px; font-weight: 700; color: var(--text-dim); background: var(--panel); border: 1px solid var(--border); padding: 5px 12px; border-radius: 20px; }
   .range-tab.active { color: var(--bg); background: var(--text); }
 
@@ -74,7 +116,7 @@
 
   <div class="statusbar">
     <div>
-      <div class="device-name">Battery Sensor Test</div>
+      <div class="device-name">Battery Monitor</div>
       <div class="device-sub" id="lastSeen">Loading...</div>
     </div>
     <div class="status-pill offline" id="statusPill">
@@ -82,16 +124,95 @@
     </div>
   </div>
 
-  <div class="flow-indicator idle" id="flowIndicator">Idle</div>
-
-  <div class="main-section">
-    <div class="main-panel">
-      <div class="watts-big">
-        <div class="watts-value mono" id="wValue">-- W</div>
-        <div class="watts-label">Net Power</div>
+  <div class="gauge-section">
+    <div class="battery-panel">
+      <div class="gauge-wrap">
+        <svg viewBox="0 0 220 130" width="220" height="130">
+          <path d="M 28 110 A 82 82 0 0 1 62.9 38.9" fill="none" stroke="#EF4444" stroke-width="13" stroke-linecap="round"/>
+          <path d="M 62.9 38.9 A 82 82 0 0 1 110 28" fill="none" stroke="#F5A623" stroke-width="13" stroke-linecap="round"/>
+          <path d="M 110 28 A 82 82 0 0 1 192 110" fill="none" stroke="#4ADE80" stroke-width="13" stroke-linecap="round"/>
+          <g class="needle" id="needle">
+            <line x1="110" y1="110" x2="110" y2="38" stroke="#E8EDF2" stroke-width="3" stroke-linecap="round"/>
+            <circle cx="110" cy="110" r="6" fill="#E8EDF2"/>
+          </g>
+        </svg>
+        <div class="gauge-center-text">
+          <div class="soc-value mono" id="socValue">--%</div>
+          <div class="soc-label">State of Charge</div>
+        </div>
       </div>
+      <div class="soc-ah mono" id="socAh">-- Ah of 22 Ah</div>
+      <div class="flow-indicator idle" id="flowIndicator">Idle</div>
+      <div class="runtime-estimate">
+        <div class="runtime-value mono" id="runtimeValue">--</div>
+        <div class="runtime-label" id="runtimeLabel">Estimating...</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats-panel">
+    <div class="stats-card">
       <div class="stat-row"><span class="stat-label">Voltage</span><span class="stat-value mono" id="vValue">-- V</span></div>
       <div class="stat-row"><span class="stat-label">Current</span><span class="stat-value mono" id="aValue">-- A</span></div>
+      <div class="stat-row"><span class="stat-label">Power</span><span class="stat-value mono" id="wValue">-- W</span></div>
+    </div>
+  </div>
+
+  <div class="capacity-panel">
+    <div class="section-title" style="margin-bottom: 8px;">Estimated Maximum Capacity</div>
+    <div class="capacity-value mono" id="capacityValue">-- Ah</div>
+    <div class="capacity-detail" id="capacityDetail">Learning from observed charge cycles...</div>
+    <div class="capacity-vs" id="capacityVs">Nameplate rating: 22 Ah</div>
+  </div>
+
+  <div class="overnight-section">
+    <div class="section-title">Load Since Last Charge</div>
+    <div class="overnight-panel">
+      <div class="overnight-badge" id="overnightBadge">Loading</div>
+      <div class="overnight-value mono" id="overnightWh">-- Wh</div>
+      <div class="overnight-detail" id="overnightDetail">Calculating...</div>
+      <div class="overnight-history" id="overnightHistory">
+        <div class="no-data">Loading previous periods...</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="health-section">
+    <div class="section-title">System Health</div>
+    <div class="health-panel">
+      <div class="panel-header">◆ Runtime &amp; Connectivity</div>
+      <div class="stat-row"><span class="stat-label">Continuous Runtime</span><span class="stat-value mono" id="uptime">--</span></div>
+      <div class="stat-row"><span class="stat-label">WiFi Signal</span><span class="stat-value mono" id="wifiSignal">--</span></div>
+      <div class="stat-row"><span class="stat-label">System Off Count</span><span class="stat-value mono" id="restartCount">--</span></div>
+      <div class="previous-sessions" id="previousSessions">
+        <div class="no-sessions">Loading previous sessions...</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="insights-section">
+    <div class="section-title">30-Day Statistics</div>
+    <div class="insights-grid">
+      <div class="insight-tile">
+        <div class="insight-value mono" id="lowestSoc">--%</div>
+        <div class="insight-label">Lowest SoC Reached</div>
+      </div>
+      <div class="insight-tile">
+        <div class="insight-value mono" id="fullCharges">--</div>
+        <div class="insight-label">Full Charge Cycles</div>
+      </div>
+      <div class="insight-tile">
+        <div class="insight-value mono" id="sinceFullCharge">--</div>
+        <div class="insight-label">Since Last Full Charge</div>
+      </div>
+      <div class="insight-tile">
+        <div class="insight-value mono" id="wifiUptime">--%</div>
+        <div class="insight-label">WiFi Uptime (7D)</div>
+      </div>
+      <div class="insight-tile" style="grid-column: 1 / -1;">
+        <div class="insight-value mono" id="peakCharge">-- W</div>
+        <div class="insight-label">Peak Charge Power Today</div>
+      </div>
     </div>
   </div>
 
@@ -101,11 +222,22 @@
     <div class="range-tab" data-days="30">30D</div>
   </div>
 
-  <div class="section-title">Power (Watts)</div>
-  <div class="chart-card"><canvas id="powerChart"></canvas></div>
+  <div class="chart-section">
+    <div class="section-title">State of Charge</div>
+    <div class="chart-card"><canvas id="socChart"></canvas></div>
 
-  <div class="section-title">Voltage &amp; Current</div>
-  <div class="chart-card"><canvas id="vaChart"></canvas></div>
+    <div class="section-title">Voltage</div>
+    <div class="chart-card"><canvas id="voltageChart"></canvas></div>
+
+    <div class="section-title">Current</div>
+    <div class="chart-card"><canvas id="currentChart"></canvas></div>
+
+    <div class="section-title">Power</div>
+    <div class="chart-card"><canvas id="powerChart"></canvas></div>
+
+    <div class="section-title">Daily Energy Balance (Wh) - Last 7 Days</div>
+    <div class="chart-card"><canvas id="energyChart"></canvas></div>
+  </div>
 
   <div class="footer-note">Auto-refreshes every 30 seconds</div>
 
@@ -113,8 +245,9 @@
   const CHANNEL_ID = "3441461";
   const READ_API_KEY = "LTGB9LLFL0KDKNGA";
   const OFFLINE_THRESHOLD_MINUTES = 1.5;
+  const PACK_CAPACITY_AH = 22.0;
 
-  let powerChart, vaChart;
+  let socChart, voltageChart, currentChart, powerChart, energyChart;
   let currentRangeDays = 1;
 
   function feedUrl(p) {
@@ -129,23 +262,17 @@
       const f = data.feeds[0];
       updateStatus(f.created_at);
       updateReadout(f);
-    } catch (e) {
-      console.error("Failed to fetch latest:", e);
-      setOffline();
-    }
+    } catch (e) { console.error("Failed to fetch latest:", e); setOffline(); }
   }
 
   function updateStatus(createdAt) {
     const lastTime = new Date(createdAt);
     const minutesAgo = (new Date() - lastTime) / 60000;
-    document.getElementById("lastSeen").textContent =
-      "Last update: " + lastTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second: '2-digit'});
+    document.getElementById("lastSeen").textContent = "Last update: " + lastTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second: '2-digit'});
     if (minutesAgo <= OFFLINE_THRESHOLD_MINUTES) {
       document.getElementById("statusPill").className = "status-pill online";
       document.getElementById("statusText").textContent = "Online";
-    } else {
-      setOffline();
-    }
+    } else { setOffline(); }
   }
 
   function setOffline() {
@@ -157,15 +284,316 @@
     const v = parseFloat(f.field1) || 0;
     const a = parseFloat(f.field2) || 0;
     const w = parseFloat(f.field3) || 0;
+    const soc = parseFloat(f.field4) || 0;
+    const uptimeHours = parseFloat(f.field5);
+    const restarts = parseInt(f.field6);
+    const rssi = parseInt(f.field7);
 
     document.getElementById("vValue").textContent = v.toFixed(2) + " V";
     document.getElementById("aValue").textContent = a.toFixed(3) + " A";
     document.getElementById("wValue").textContent = w.toFixed(2) + " W";
+    document.getElementById("socValue").textContent = soc.toFixed(0) + "%";
+    document.getElementById("socAh").textContent = ((soc/100)*PACK_CAPACITY_AH).toFixed(1) + " Ah of " + PACK_CAPACITY_AH + " Ah";
+    document.getElementById("uptime").textContent = isNaN(uptimeHours) ? "--" : formatUptime(uptimeHours);
+    document.getElementById("restartCount").textContent = isNaN(restarts) ? "--" : restarts;
+    document.getElementById("wifiSignal").textContent = isNaN(rssi) ? "--" : `${rssi} dBm (${wifiQualityLabel(rssi)})`;
 
+    updateNeedle(soc);
+    updateFlowIndicator(a);
+    updateRuntime(soc, a);
+  }
+
+  function wifiQualityLabel(rssi) {
+    if (rssi >= -50) return "Excellent";
+    if (rssi >= -60) return "Good";
+    if (rssi >= -70) return "Fair";
+    if (rssi >= -80) return "Weak";
+    return "Very Weak";
+  }
+
+  function formatUptime(hours) {
+    const days = Math.floor(hours / 24);
+    const hrs = Math.floor(hours % 24);
+    return days > 0 ? `${days}d ${hrs}h` : `${hrs}h ${Math.round((hours % 1) * 60)}m`;
+  }
+
+  function updateNeedle(soc) {
+    const angle = -90 + (Math.max(0, Math.min(100, soc)) / 100) * 180;
+    document.getElementById("needle").style.transform = `rotate(${angle}deg)`;
+  }
+
+  function updateFlowIndicator(a) {
     const el = document.getElementById("flowIndicator");
     if (a > 0.05) { el.className = "flow-indicator charging"; el.textContent = "Charging"; }
     else if (a < -0.05) { el.className = "flow-indicator discharging"; el.textContent = "Discharging"; }
     else { el.className = "flow-indicator idle"; el.textContent = "Idle"; }
+  }
+
+  function updateRuntime(soc, a) {
+    const remainingAh = (soc / 100) * PACK_CAPACITY_AH;
+    const valueEl = document.getElementById("runtimeValue");
+    const labelEl = document.getElementById("runtimeLabel");
+    if (a < -0.05) {
+      valueEl.textContent = formatDuration(remainingAh / Math.abs(a));
+      labelEl.textContent = "Estimated runtime left";
+    } else if (a > 0.05) {
+      const ahToFull = PACK_CAPACITY_AH - remainingAh;
+      const hoursToFull = ahToFull / a;
+      valueEl.textContent = ahToFull <= 0.05 ? "Full" : formatDuration(hoursToFull);
+      labelEl.textContent = "Estimated time to full";
+    } else {
+      valueEl.textContent = "Steady"; labelEl.textContent = "Idle - no net current";
+    }
+  }
+
+  function formatDuration(hours) {
+    if (!isFinite(hours) || hours < 0) return "--";
+    if (hours > 999) return "999+ hrs";
+    const h = Math.floor(hours);
+    const m = Math.round((hours - h) * 60);
+    return h + "h " + m + "m";
+  }
+
+  async function fetchPreviousSessions() {
+    try {
+      const res = await fetch(feedUrl("days=30"));
+      const data = await res.json();
+      if (!data.feeds || data.feeds.length < 2) {
+        document.getElementById("previousSessions").innerHTML = '<div class="no-sessions">Not enough history yet</div>';
+        return;
+      }
+      const feeds = data.feeds;
+      const sessions = [];
+      for (let i = 1; i < feeds.length; i++) {
+        const prevHours = parseFloat(feeds[i - 1].field5);
+        const currHours = parseFloat(feeds[i].field5);
+        if (isNaN(prevHours) || isNaN(currHours)) continue;
+        if (currHours < 0.05 && prevHours > 0.1) {
+          sessions.push({ duration: prevHours, endedAt: new Date(feeds[i - 1].created_at) });
+        }
+      }
+      if (sessions.length === 0) {
+        document.getElementById("previousSessions").innerHTML = '<div class="no-sessions">No completed sessions yet</div>';
+        return;
+      }
+      const recent = sessions.reverse().slice(0, 5);
+      document.getElementById("previousSessions").innerHTML = recent.map(s => `
+        <div class="session-row">
+          <span>${s.endedAt.toLocaleDateString([], {month:'short', day:'numeric'})}</span>
+          <span class="session-duration mono">${formatDuration(s.duration)}</span>
+        </div>`).join('');
+    } catch (e) { console.error("Failed to build previous sessions:", e); }
+  }
+
+  // Overnight load: whenever Amps drops to/below the charging threshold,
+  // that's charging stopped - sum Watts until Amps rises back above it.
+  async function fetchOvernightLoad() {
+    try {
+      const res = await fetch(feedUrl("days=30"));
+      const data = await res.json();
+      if (!data.feeds || data.feeds.length < 2) return;
+      const feeds = data.feeds;
+
+      const completed = [];
+      let inDischargePeriod = false, periodStart = null, accumWh = 0, accumAh = 0, lastTime = null;
+
+      for (let i = 0; i < feeds.length; i++) {
+        const amps = parseFloat(feeds[i].field2);
+        const watts = parseFloat(feeds[i].field3);
+        const t = new Date(feeds[i].created_at);
+        if (isNaN(amps) || isNaN(watts)) continue;
+
+        const charging = amps > 0.05;
+        if (!charging) {
+          if (!inDischargePeriod) { inDischargePeriod = true; periodStart = t; accumWh = 0; accumAh = 0; lastTime = t; }
+          else {
+            const dtHours = (t - lastTime) / 3600000;
+            if (dtHours > 0 && dtHours < 1) { accumWh += watts * dtHours; accumAh += Math.abs(amps) * dtHours; }
+            lastTime = t;
+          }
+        } else if (inDischargePeriod) {
+          completed.push({ start: periodStart, end: lastTime, totalWh: Math.abs(accumWh), totalAh: accumAh, durationHours: (lastTime - periodStart) / 3600000 });
+          inDischargePeriod = false;
+        }
+      }
+
+      let ongoing = null;
+      if (inDischargePeriod) {
+        ongoing = { start: periodStart, end: lastTime, totalWh: Math.abs(accumWh), totalAh: accumAh, durationHours: (lastTime - periodStart) / 3600000 };
+      }
+      renderOvernightLoad(ongoing, completed.reverse());
+    } catch (e) { console.error("Failed to compute overnight load:", e); }
+  }
+
+  function renderOvernightLoad(ongoing, completedPeriods) {
+    const badge = document.getElementById("overnightBadge");
+    const valueEl = document.getElementById("overnightWh");
+    const detailEl = document.getElementById("overnightDetail");
+
+    if (ongoing) {
+      badge.textContent = "In Progress";
+      valueEl.textContent = ongoing.totalWh.toFixed(1) + " Wh";
+      detailEl.textContent = `${formatDuration(ongoing.durationHours)} so far - ${ongoing.totalAh.toFixed(2)} Ah used`;
+    } else if (completedPeriods.length > 0) {
+      const last = completedPeriods[0];
+      badge.textContent = "Last Completed";
+      valueEl.textContent = last.totalWh.toFixed(1) + " Wh";
+      detailEl.textContent = `${formatDuration(last.durationHours)} - ${last.totalAh.toFixed(2)} Ah used`;
+    } else {
+      badge.textContent = "No Data"; valueEl.textContent = "--"; detailEl.textContent = "Not enough history yet";
+    }
+
+    const historyList = ongoing ? completedPeriods : completedPeriods.slice(1);
+    if (historyList.length === 0) {
+      document.getElementById("overnightHistory").innerHTML = '<div class="no-data">No previous periods yet</div>';
+      return;
+    }
+    document.getElementById("overnightHistory").innerHTML = historyList.slice(0, 7).map(p => `
+      <div class="overnight-row">
+        <span>${p.start.toLocaleDateString([], {month:'short', day:'numeric'})}</span>
+        <span class="overnight-wh mono">${p.totalAh.toFixed(2)}Ah / ${p.totalWh.toFixed(1)}Wh</span>
+      </div>`).join('');
+  }
+
+  // Estimated Max Capacity: detects full-charge-to-full-charge cycles (SoC
+  // crossing to >=99.9%) and sums total Ah discharged during each completed
+  // cycle. Averages the most recent cycles - improves as more accumulate.
+  async function fetchEstimatedCapacity() {
+    try {
+      const res = await fetch(feedUrl("days=60"));
+      const data = await res.json();
+      if (!data.feeds || data.feeds.length < 2) return;
+      const feeds = data.feeds;
+
+      const cycles = [];
+      let inCycle = false, cycleAh = 0, lastTime = null;
+
+      for (let i = 0; i < feeds.length; i++) {
+        const soc = parseFloat(feeds[i].field4);
+        const amps = parseFloat(feeds[i].field2);
+        const t = new Date(feeds[i].created_at);
+        if (isNaN(soc) || isNaN(amps)) continue;
+
+        if (soc >= 99.9) {
+          if (inCycle && cycleAh > 1) { // only count meaningful cycles
+            cycles.push(cycleAh);
+          }
+          inCycle = true; cycleAh = 0; lastTime = t;
+        } else if (inCycle) {
+          const dtHours = lastTime ? (t - lastTime) / 3600000 : 0;
+          if (dtHours > 0 && dtHours < 1 && amps < 0) {
+            cycleAh += Math.abs(amps) * dtHours;
+          }
+          lastTime = t;
+        }
+      }
+
+      const capacityEl = document.getElementById("capacityValue");
+      const detailEl = document.getElementById("capacityDetail");
+
+      if (cycles.length === 0) {
+        capacityEl.textContent = "-- Ah";
+        detailEl.textContent = "No completed charge cycles yet - keep collecting data";
+        return;
+      }
+
+      const recentCycles = cycles.slice(-5);
+      const avgCapacity = recentCycles.reduce((a, b) => a + b, 0) / recentCycles.length;
+      capacityEl.textContent = avgCapacity.toFixed(1) + " Ah";
+      detailEl.textContent = `Based on ${recentCycles.length} observed cycle${recentCycles.length > 1 ? 's' : ''} - improves as more accumulate`;
+
+      const diffPct = ((avgCapacity - PACK_CAPACITY_AH) / PACK_CAPACITY_AH * 100);
+      const diffText = diffPct >= 0 ? `+${diffPct.toFixed(1)}%` : `${diffPct.toFixed(1)}%`;
+      document.getElementById("capacityVs").textContent = `Nameplate rating: ${PACK_CAPACITY_AH} Ah (${diffText})`;
+    } catch (e) { console.error("Failed to estimate capacity:", e); }
+  }
+
+  async function fetchInsights() {
+    try {
+      const res = await fetch(feedUrl("days=30"));
+      const data = await res.json();
+      if (!data.feeds || data.feeds.length === 0) return;
+      const feeds = data.feeds;
+
+      const socValues = feeds.map(f => parseFloat(f.field4)).filter(v => !isNaN(v));
+      if (socValues.length > 0) document.getElementById("lowestSoc").textContent = Math.min(...socValues).toFixed(0) + "%";
+
+      let fullChargeCount = 0, wasFull = false, lastFullChargeTime = null;
+      feeds.forEach(f => {
+        const soc = parseFloat(f.field4);
+        if (isNaN(soc)) return;
+        const isFull = soc >= 99.9;
+        if (isFull && !wasFull) { fullChargeCount++; lastFullChargeTime = new Date(f.created_at); }
+        wasFull = isFull;
+      });
+      document.getElementById("fullCharges").textContent = fullChargeCount;
+
+      if (lastFullChargeTime) {
+        const hoursSince = (new Date() - lastFullChargeTime) / 3600000;
+        document.getElementById("sinceFullCharge").textContent = formatDuration(hoursSince);
+      } else {
+        document.getElementById("sinceFullCharge").textContent = "--";
+      }
+
+      const today = new Date().toDateString();
+      const todaysCharge = feeds.filter(f => new Date(f.created_at).toDateString() === today).map(f => parseFloat(f.field3)).filter(v => !isNaN(v) && v > 0);
+      document.getElementById("peakCharge").textContent = todaysCharge.length > 0 ? Math.max(...todaysCharge).toFixed(1) + " W" : "No data yet";
+
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const recentFeeds = feeds.filter(f => new Date(f.created_at) >= sevenDaysAgo);
+      if (recentFeeds.length > 1) {
+        let downtimeMs = 0;
+        for (let i = 1; i < recentFeeds.length; i++) {
+          const gap = new Date(recentFeeds[i].created_at) - new Date(recentFeeds[i-1].created_at);
+          if (gap > 90000) downtimeMs += (gap - 30000);
+        }
+        const totalRangeMs = new Date(recentFeeds[recentFeeds.length-1].created_at) - new Date(recentFeeds[0].created_at);
+        const uptimePct = totalRangeMs > 0 ? Math.max(0, 100 - (downtimeMs / totalRangeMs) * 100) : 100;
+        document.getElementById("wifiUptime").textContent = uptimePct.toFixed(1) + "%";
+      }
+
+      renderEnergyChart(feeds);
+    } catch (e) { console.error("Failed to fetch insights:", e); }
+  }
+
+  function renderEnergyChart(feeds) {
+    const dayTotals = {};
+    for (let i = 1; i < feeds.length; i++) {
+      const prevTime = new Date(feeds[i - 1].created_at);
+      const currTime = new Date(feeds[i].created_at);
+      const dtHours = (currTime - prevTime) / 3600000;
+      if (dtHours <= 0 || dtHours > 1) continue;
+
+      const watts = parseFloat(feeds[i].field3) || 0;
+      const dayKey = currTime.toLocaleDateString([], {month: 'short', day: 'numeric'});
+      if (!dayTotals[dayKey]) dayTotals[dayKey] = { charged: 0, discharged: 0 };
+      if (watts > 0) dayTotals[dayKey].charged += watts * dtHours;
+      else dayTotals[dayKey].discharged += Math.abs(watts) * dtHours;
+    }
+
+    const last7Days = Object.keys(dayTotals).slice(-7);
+    const whCharged = last7Days.map(d => dayTotals[d].charged.toFixed(1));
+    const whDischarged = last7Days.map(d => dayTotals[d].discharged.toFixed(1));
+
+    if (energyChart) energyChart.destroy();
+    energyChart = new Chart(document.getElementById('energyChart'), {
+      type: 'bar',
+      data: {
+        labels: last7Days,
+        datasets: [
+          { label: 'Wh Charged', data: whCharged, backgroundColor: '#F5A623' },
+          { label: 'Wh Discharged', data: whDischarged, backgroundColor: '#2DD4BF' }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        plugins: { legend: { labels: { color: '#8B98A5', font: { size: 10 } } } },
+        scales: {
+          x: { ticks: { color: '#8B98A5', font: { size: 9 } }, grid: { color: '#232B34' } },
+          y: { ticks: { color: '#8B98A5', font: { size: 9 } }, grid: { color: '#232B34' } }
+        }
+      }
+    });
   }
 
   async function fetchHistory(days) {
@@ -183,41 +611,46 @@
         ? d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
         : d.toLocaleDateString([], {month:'short', day:'numeric'}) + " " + d.toLocaleTimeString([], {hour:'2-digit'});
     });
+    const soc = feeds.map(f => parseFloat(f.field4) || null);
     const v = feeds.map(f => parseFloat(f.field1) || null);
     const a = feeds.map(f => parseFloat(f.field2) || null);
     const w = feeds.map(f => parseFloat(f.field3) || null);
 
     const commonOpts = {
       responsive: true, maintainAspectRatio: false, animation: false,
-      plugins: { legend: { labels: { color: '#8B98A5', font: { size: 10 } } } },
+      plugins: { legend: { display: false } },
       scales: {
         x: { ticks: { color: '#8B98A5', maxTicksLimit: 6, font: { size: 9 } }, grid: { color: '#232B34' } },
         y: { ticks: { color: '#8B98A5', font: { size: 9 } }, grid: { color: '#232B34' } }
       }
     };
 
-    if (powerChart) powerChart.destroy();
-    powerChart = new Chart(document.getElementById('powerChart'), {
+    if (socChart) socChart.destroy();
+    socChart = new Chart(document.getElementById('socChart'), {
       type: 'line',
-      data: { labels, datasets: [{ label: 'Watts', data: w, borderColor: '#4ADE80', backgroundColor: 'rgba(74,222,128,0.1)', fill: true, tension: 0.3, pointRadius: 0, borderWidth: 2 }] },
+      data: { labels, datasets: [{ data: soc, borderColor: '#4ADE80', backgroundColor: 'rgba(74,222,128,0.1)', fill: true, tension: 0.3, pointRadius: 0, borderWidth: 2 }] },
+      options: { ...commonOpts, scales: { ...commonOpts.scales, y: { ...commonOpts.scales.y, min: 0, max: 100 } } }
+    });
+
+    if (voltageChart) voltageChart.destroy();
+    voltageChart = new Chart(document.getElementById('voltageChart'), {
+      type: 'line',
+      data: { labels, datasets: [{ data: v, borderColor: '#F5A623', tension: 0.3, pointRadius: 0, borderWidth: 2 }] },
       options: commonOpts
     });
 
-    if (vaChart) vaChart.destroy();
-    vaChart = new Chart(document.getElementById('vaChart'), {
+    if (currentChart) currentChart.destroy();
+    currentChart = new Chart(document.getElementById('currentChart'), {
       type: 'line',
-      data: { labels, datasets: [
-        { label: 'Voltage', data: v, borderColor: '#F5A623', tension: 0.3, pointRadius: 0, borderWidth: 2, yAxisID: 'y' },
-        { label: 'Current', data: a, borderColor: '#2DD4BF', tension: 0.3, pointRadius: 0, borderWidth: 2, yAxisID: 'y1' }
-      ]},
-      options: {
-        ...commonOpts,
-        scales: {
-          ...commonOpts.scales,
-          y: { ...commonOpts.scales.y, position: 'left' },
-          y1: { ...commonOpts.scales.y, position: 'right', grid: { display: false } }
-        }
-      }
+      data: { labels, datasets: [{ data: a, borderColor: '#2DD4BF', tension: 0.3, pointRadius: 0, borderWidth: 2 }] },
+      options: commonOpts
+    });
+
+    if (powerChart) powerChart.destroy();
+    powerChart = new Chart(document.getElementById('powerChart'), {
+      type: 'line',
+      data: { labels, datasets: [{ data: w, borderColor: '#A78BFA', backgroundColor: 'rgba(167,139,250,0.1)', fill: true, tension: 0.3, pointRadius: 0, borderWidth: 2 }] },
+      options: commonOpts
     });
   }
 
@@ -231,9 +664,18 @@
   });
 
   fetchLatest();
+  fetchPreviousSessions();
+  fetchOvernightLoad();
+  fetchEstimatedCapacity();
   fetchHistory(currentRangeDays);
+  fetchInsights();
+
   setInterval(fetchLatest, 30000);
+  setInterval(fetchPreviousSessions, 60000);
+  setInterval(fetchOvernightLoad, 60000);
+  setInterval(fetchEstimatedCapacity, 300000);
   setInterval(() => fetchHistory(currentRangeDays), 300000);
+  setInterval(fetchInsights, 300000);
 </script>
 
 </body>
